@@ -1,0 +1,32 @@
+name: Fetch Torn Stocks
+
+on:
+  schedule:
+    - cron: "0 * * * *"  # every hour
+  workflow_dispatch:      # allows manual run
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Run script
+        run: node scripts/fetchStocks.js
+        env:
+          TORN_API_KEY: ${{ secrets.TORN_API_KEY }}
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add data/stocks.json
+          git commit -m "Update stock data" || echo "No changes"
+          git push
