@@ -16,8 +16,8 @@
   
     let output = `Timestamp: ${latest.timestamp}\n\n`;
   
-    for (const [stock, info] of Object.entries(latest.stocks)) {
-      output += `${stock}: ${info.price}\n`;
+    for (const [id, info] of Object.entries(latest.stocks)) {
+      output += `${info.name} (${id}): ${info.current_price}\n`;
     }
   
     document.getElementById("output").textContent = output;
