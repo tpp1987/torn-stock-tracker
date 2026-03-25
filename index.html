@@ -8,17 +8,22 @@
   <pre id="output">Loading...</pre>
 
   <script>
-    async function loadData() {
-      const res = await fetch('./data/stocks.json');
-      const data = await res.json();
-
-      const latest = data[data.length - 1];
-
-      document.getElementById("output").textContent =
-        JSON.stringify(latest, null, 2);
+  async function loadData() {
+    const res = await fetch('./data/stocks.json');
+    const data = await res.json();
+  
+    const latest = data[data.length - 1];
+  
+    let output = `Timestamp: ${latest.timestamp}\n\n`;
+  
+    for (const [stock, info] of Object.entries(latest.stocks)) {
+      output += `${stock}: ${info.price}\n`;
     }
-
-    loadData();
+  
+    document.getElementById("output").textContent = output;
+  }
+  
+  loadData();
   </script>
 </body>
 </html>
