@@ -13,11 +13,37 @@
     const data = await res.json();
   
     const latest = data[data.length - 1];
+    const recent = data.slice(-6); // last 6 entries
   
     let output = `Timestamp: ${latest.timestamp}\n\n`;
   
     for (const [id, info] of Object.entries(latest.stocks)) {
-      output += `${info.name} (${id}): ${info.current_price}\n`;
+      // Collect recent prices for this stock
+      let prices = [];
+  
+      for (const snapshot of recent) {
+        if (snapshot.stocks[id]) {
+          prices.push(snapshot.stocks[id].current_price);
+        }
+      }
+  
+      // Skip if not enough data yet
+      if (prices.length < 3) continue;
+  
+      const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+      const current = info.current_price;
+  
+      const deviation = ((current - avg) / avg) * 100;
+  
+      let signal = "HOLD";
+      if (deviation < -3) signal = "BUY";
+      if (deviation > 3) signal = "SELL";
+  
+      output += `${info.name}\n`;
+      output += `  Current: £${current.toFixed(2)}\n`;
+      output += `  Avg:     £${avg.toFixed(2)}\n`;
+      output += `  Dev:     ${deviation.toFixed(2)}%\n`;
+      output += `  Signal:  ${signal}\n\n`;
     }
   
     document.getElementById("output").textContent = output;
