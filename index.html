@@ -12,12 +12,18 @@
     const res = await fetch('./data/stocks.json');
     const data = await res.json();
   
-    const latest = data[data.length - 1];
-    const recent = data.slice(-6); // last 6 entries
+    if (!data || data.length === 0) {
+      document.getElementById("output").textContent = "No data yet.";
+      return;
+    }
   
-    let output = `Timestamp: ${latest.timestamp}\n\n`;
+    const latest = data[data.length - 1];
+    const recent = data.slice(-6); // last ~6 data points
+  
+    let results = [];
   
     for (const [id, info] of Object.entries(latest.stocks)) {
+  
       // Collect recent prices for this stock
       let prices = [];
   
@@ -32,18 +38,29 @@
   
       const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
       const current = info.current_price;
-  
       const deviation = ((current - avg) / avg) * 100;
   
       let signal = "HOLD";
       if (deviation < -3) signal = "BUY";
       if (deviation > 3) signal = "SELL";
   
-      output += `${info.name}\n`;
-      output += `  Current: £${current.toFixed(2)}\n`;
-      output += `  Avg:     £${avg.toFixed(2)}\n`;
-      output += `  Dev:     ${deviation.toFixed(2)}%\n`;
-      output += `  Signal:  ${signal}\n\n`;
+      results.push({
+        name: info.name,
+        current,
+        avg,
+        deviation,
+        signal
+      });
+    }
+  
+    // Sort by deviation (most negative first = best buy candidates)
+    results.sort((a, b) => a.deviation - b.deviation);
+  
+    let output = `Timestamp: ${latest.timestamp}\n\n`;
+  
+    for (const r of results) {
+      output += `${r.name}\n`;
+      output += `  Current: £${r.current.toFixed(2)} | Avg: £${r.avg.toFixed(2)} | Dev: ${r.deviation.toFixed(2)}% | ${r.signal}\n\n`;
     }
   
     document.getElementById("output").textContent = output;
