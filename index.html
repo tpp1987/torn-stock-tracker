@@ -18,13 +18,12 @@
     }
   
     const latest = data[data.length - 1];
-    const recent = data.slice(-6); // last ~6 data points
+    const recent = data.slice(-24); // ~last 24 hours
   
     let results = [];
   
     for (const [id, info] of Object.entries(latest.stocks)) {
   
-      // Collect recent prices for this stock
       let prices = [];
   
       for (const snapshot of recent) {
@@ -33,34 +32,43 @@
         }
       }
   
-      // Skip if not enough data yet
-      if (prices.length < 3) continue;
+      // Need enough data
+      if (prices.length < 5) continue;
   
-      const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
       const current = info.current_price;
-      const deviation = ((current - avg) / avg) * 100;
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+  
+      // Avoid division by zero (flat price)
+      if (max === min) continue;
+  
+      const position = (current - min) / (max - min);
   
       let signal = "HOLD";
-      if (deviation < -3) signal = "BUY";
-      if (deviation > 3) signal = "SELL";
+      if (position < 0.2) signal = "BUY";
+      if (position > 0.8) signal = "SELL";
   
       results.push({
         name: info.name,
         current,
-        avg,
-        deviation,
+        min,
+        max,
+        position,
         signal
       });
     }
   
-    // Sort by deviation (most negative first = best buy candidates)
-    results.sort((a, b) => a.deviation - b.deviation);
+    // Sort: best BUYs first (lowest position)
+    results.sort((a, b) => a.position - b.position);
   
     let output = `Timestamp: ${latest.timestamp}\n\n`;
   
     for (const r of results) {
       output += `${r.name}\n`;
-      output += `  Current: £${r.current.toFixed(2)} | Avg: £${r.avg.toFixed(2)} | Dev: ${r.deviation.toFixed(2)}% | ${r.signal}\n\n`;
+      output += `  Current: £${r.current.toFixed(2)}\n`;
+      output += `  Range:   £${r.min.toFixed(2)} - £${r.max.toFixed(2)}\n`;
+      output += `  Pos:     ${(r.position * 100).toFixed(1)}%\n`;
+      output += `  Signal:  ${r.signal}\n\n`;
     }
   
     document.getElementById("output").textContent = output;
