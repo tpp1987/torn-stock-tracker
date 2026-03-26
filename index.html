@@ -18,7 +18,7 @@
     }
   
     const latest = data[data.length - 1];
-    const recent = data.slice(-24); // ~last 24 data points
+    const recent = data.slice(-24);
   
     let results = [];
   
@@ -32,19 +32,18 @@
         }
       }
   
-      // Require minimum data
       if (prices.length < 5) continue;
   
       const current = info.current_price;
       const min = Math.min(...prices);
       const max = Math.max(...prices);
   
-      // Avoid flat data
       if (max === min) continue;
   
-      // Filter out weak/flat stocks (range < 1%)
       const rangeSize = ((max - min) / min) * 100;
-      if (rangeSize < 1) continue;
+  
+      // Only skip completely flat stocks
+      if (rangeSize < 0.05) continue;
   
       const position = (current - min) / (max - min);
   
@@ -63,10 +62,13 @@
       });
     }
   
-    // Sort: best BUYs first (lowest position)
     results.sort((a, b) => a.position - b.position);
   
     let output = `Timestamp: ${latest.timestamp}\n\n`;
+  
+    if (results.length === 0) {
+      output += "No qualifying stocks (market very flat right now)";
+    }
   
     for (const r of results) {
       output += `${r.code} - ${r.name}\n`;
