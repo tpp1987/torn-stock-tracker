@@ -18,7 +18,7 @@
     }
   
     const latest = data[data.length - 1];
-    const recent = data.slice(-24); // ~last 24 hours
+    const recent = data.slice(-24); // ~last 24 data points
   
     let results = [];
   
@@ -32,15 +32,19 @@
         }
       }
   
-      // Need enough data
+      // Require minimum data
       if (prices.length < 5) continue;
   
       const current = info.current_price;
       const min = Math.min(...prices);
       const max = Math.max(...prices);
   
-      // Avoid division by zero (flat price)
+      // Avoid flat data
       if (max === min) continue;
+  
+      // Filter out weak/flat stocks (range < 1%)
+      const rangeSize = ((max - min) / min) * 100;
+      if (rangeSize < 1) continue;
   
       const position = (current - min) / (max - min);
   
@@ -49,6 +53,7 @@
       if (position > 0.8) signal = "SELL";
   
       results.push({
+        code: info.acronym || id,
         name: info.name,
         current,
         min,
@@ -64,9 +69,9 @@
     let output = `Timestamp: ${latest.timestamp}\n\n`;
   
     for (const r of results) {
-      output += `${r.name}\n`;
-      output += `  Current: £${r.current.toFixed(2)}\n`;
-      output += `  Range:   £${r.min.toFixed(2)} - £${r.max.toFixed(2)}\n`;
+      output += `${r.code} - ${r.name}\n`;
+      output += `  Current: ${r.current.toFixed(2)}\n`;
+      output += `  Range:   ${r.min.toFixed(2)} - ${r.max.toFixed(2)}\n`;
       output += `  Pos:     ${(r.position * 100).toFixed(1)}%\n`;
       output += `  Signal:  ${r.signal}\n\n`;
     }
