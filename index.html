@@ -1,87 +1,166 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Torn Stock Tracker</title>
+  <title>Torn Stock Tool</title>
 </head>
 <body>
-  <h1>Torn Stock Data</h1>
-  <pre id="output">Loading...</pre>
 
-  <script>
-  async function loadData() {
-    const res = await fetch('./data/stocks.json');
-    const data = await res.json();
-  
-    if (!data || data.length === 0) {
-      document.getElementById("output").textContent = "No data yet.";
-      return;
+<h1>Torn Stock Tool</h1>
+
+<h2>Your Holdings</h2>
+
+<div id="inputs">
+  <div class="row">
+    Code: <input type="text" class="code">
+    Units: <input type="number" class="units">
+  </div>
+</div>
+
+<button onclick="addRow()">Add another stock</button>
+<button onclick="analyse()">Analyse</button>
+
+<pre id="output"></pre>
+
+<script>
+function addRow() {
+  const div = document.createElement("div");
+  div.className = "row";
+  div.innerHTML = `
+    Code: <input type="text" class="code">
+    Units: <input type="number" class="units">
+  `;
+  document.getElementById("inputs").appendChild(div);
+}
+
+async function analyse() {
+  const res = await fetch('./data/stocks.json');
+  const data = await res.json();
+
+  if (!data || data.length === 0) {
+    document.getElementById("output").textContent = "No data yet.";
+    return;
+  }
+
+  const latest = data[data.length - 1];
+  const recent = data.slice(-24);
+
+  // Build portfolio from inputs
+  const rows = document.querySelectorAll(".row");
+  let portfolio = {};
+
+  rows.forEach(row => {
+    const code = row.querySelector(".code").value.toUpperCase().trim();
+    const units = parseFloat(row.querySelector(".units").value);
+
+    if (code && units > 0) {
+      portfolio[code] = units;
     }
-  
-    const latest = data[data.length - 1];
-    const recent = data.slice(-24);
-  
-    let results = [];
-  
-    for (const [id, info] of Object.entries(latest.stocks)) {
-  
-      let prices = [];
-  
-      for (const snapshot of recent) {
-        if (snapshot.stocks[id]) {
-          prices.push(snapshot.stocks[id].current_price);
-        }
+  });
+
+  let portfolioResults = [];
+  let buyOpportunities = [];
+  let totalValue = 0;
+
+  for (const [id, info] of Object.entries(latest.stocks)) {
+
+    let prices = [];
+
+    for (const snapshot of recent) {
+      if (snapshot.stocks[id]) {
+        prices.push(snapshot.stocks[id].current_price);
       }
-  
-      if (prices.length < 5) continue;
-  
-      const current = info.current_price;
-      const min = Math.min(...prices);
-      const max = Math.max(...prices);
-  
-      if (max === min) continue;
-  
-      const rangeSize = ((max - min) / min) * 100;
-  
-      // Only skip completely flat stocks
-      if (rangeSize < 0.05) continue;
-  
-      const position = (current - min) / (max - min);
-  
-      let signal = "HOLD";
-      if (position < 0.2) signal = "BUY";
-      if (position > 0.8) signal = "SELL";
-  
-      results.push({
-        code: info.acronym || id,
-        name: info.name,
-        current,
-        min,
-        max,
-        position,
-        signal
+    }
+
+    if (prices.length < 5) continue;
+
+    const current = info.current_price;
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+
+    if (max === min) continue;
+
+    const rangeSize = ((max - min) / min) * 100;
+    if (rangeSize < 0.05) continue;
+
+    const position = (current - min) / (max - min);
+
+    let signal = "HOLD";
+    if (position < 0.2) signal = "BUY";
+    if (position > 0.8) signal = "SELL";
+
+    const code = info.acronym || id;
+
+    const result = {
+      code,
+      name: info.name,
+      current,
+      min,
+      max,
+      position,
+      signal
+    };
+
+    // If in portfolio → track separately
+    if (portfolio[code]) {
+      const units = portfolio[code];
+      const value = units * current;
+      totalValue += value;
+
+      portfolioResults.push({
+        ...result,
+        units,
+        value
       });
+    } else {
+      // Only show BUY opportunities for non-owned stocks
+      if (signal === "BUY") {
+        buyOpportunities.push(result);
+      }
     }
-  
-    results.sort((a, b) => a.position - b.position);
-  
-    let output = `Timestamp: ${latest.timestamp}\n\n`;
-  
-    if (results.length === 0) {
-      output += "No qualifying stocks (market very flat right now)";
-    }
-  
-    for (const r of results) {
+  }
+
+  // Sort
+  portfolioResults.sort((a, b) => a.position - b.position);
+  buyOpportunities.sort((a, b) => a.position - b.position);
+
+  let output = `Timestamp: ${latest.timestamp}\n\n`;
+
+  // Portfolio section
+  output += "=== YOUR HOLDINGS ===\n\n";
+
+  if (portfolioResults.length === 0) {
+    output += "No holdings entered\n\n";
+  } else {
+    for (const r of portfolioResults) {
       output += `${r.code} - ${r.name}\n`;
+      output += `  Units:   ${r.units}\n`;
+      output += `  Value:   ${r.value.toFixed(2)}\n`;
       output += `  Current: ${r.current.toFixed(2)}\n`;
       output += `  Range:   ${r.min.toFixed(2)} - ${r.max.toFixed(2)}\n`;
       output += `  Pos:     ${(r.position * 100).toFixed(1)}%\n`;
       output += `  Signal:  ${r.signal}\n\n`;
     }
-  
-    document.getElementById("output").textContent = output;
+
+    output += `TOTAL VALUE: ${totalValue.toFixed(2)}\n\n`;
   }
-  
-  loadData();
-  </script>
+
+  // Buy opportunities
+  output += "=== BUY OPPORTUNITIES ===\n\n";
+
+  if (buyOpportunities.length === 0) {
+    output += "No strong buy signals right now\n";
+  } else {
+    for (const r of buyOpportunities) {
+      output += `${r.code} - ${r.name}\n`;
+      output += `  Current: ${r.current.toFixed(2)}\n`;
+      output += `  Range:   ${r.min.toFixed(2)} - ${r.max.toFixed(2)}\n`;
+      output += `  Pos:     ${(r.position * 100).toFixed(1)}%\n\n`;
+    }
+  }
+
+  document.getElementById("output").textContent = output;
+}
+</script>
+
 </body>
 </html>
