@@ -43,6 +43,25 @@ Price:
 <pre id="output"></pre>
 
 <script>
+function prepareTrade() {
+  const type = document.getElementById("tradeType").value;
+  const code = document.getElementById("tradeCode").value.toUpperCase().trim();
+  const units = document.getElementById("tradeUnits").value;
+  const price = document.getElementById("tradePrice").value;
+
+  const text = `
+Go to: Actions → Add Trade → Run workflow
+
+Enter:
+type: ${type}
+code: ${code}
+units: ${units}
+price: ${price}
+  `;
+
+  document.getElementById("tradeOutput").textContent = text;
+}
+  
 function addRow() {
   const div = document.createElement("div");
   div.className = "row";
