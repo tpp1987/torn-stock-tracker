@@ -1,0 +1,68 @@
+name: Add Trade
+
+on:
+  workflow_dispatch:
+    inputs:
+      type:
+        description: "BUY or SELL"
+        required: true
+      code:
+        description: "Stock code (e.g. TCI)"
+        required: true
+      units:
+        description: "Number of units"
+        required: true
+      price:
+        description: "Price per unit"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  add-trade:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Append trade to JSON
+        run: |
+          FILE="data/trades.json"
+
+          # Create file if missing
+          if [ ! -f "$FILE" ]; then
+            echo "[]" > $FILE
+          fi
+
+          # Read existing JSON
+          DATA=$(cat $FILE)
+
+          # New trade object
+          NEW=$(jq -n \
+            --arg timestamp "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+            --arg type "${{ github.event.inputs.type }}" \
+            --arg code "${{ github.event.inputs.code }}" \
+            --arg units "${{ github.event.inputs.units }}" \
+            --arg price "${{ github.event.inputs.price }}" \
+            '{
+              timestamp: $timestamp,
+              type: $type,
+              code: $code,
+              units: ($units | tonumber),
+              price: ($price | tonumber)
+            }')
+
+          # Append to array
+          UPDATED=$(echo "$DATA" | jq ". + [ $NEW ]")
+
+          echo "$UPDATED" > $FILE
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add data/trades.json
+          git commit -m "Add trade" || echo "No changes"
+          git push
