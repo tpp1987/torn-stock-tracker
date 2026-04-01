@@ -7,6 +7,27 @@
 
 <h1>Torn Stock Tool</h1>
 
+<h2>Add Trade</h2>
+
+Type:
+<select id="tradeType">
+  <option value="BUY">BUY</option>
+  <option value="SELL">SELL</option>
+</select>
+
+Code:
+<input type="text" id="tradeCode">
+
+Units:
+<input type="number" id="tradeUnits">
+
+Price:
+<input type="number" id="tradePrice" step="0.01">
+
+<button onclick="prepareTrade()">Prepare Trade</button>
+
+<pre id="tradeOutput"></pre>
+
 <h2>Your Holdings</h2>
 
 <div id="inputs">
